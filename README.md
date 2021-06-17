@@ -1,9 +1,11 @@
 # PatchCore_anomaly_detection
 Unofficial implementation of PatchCore anomaly detection  
+
+
 Original Paper : 
-Towards Total Recall in Industrial Anomaly Detection -  
+Towards Total Recall in Industrial Anomaly Detection (Jun 2021)  
 Karsten Roth, Latha Pemula, Joaquin Zepeda, Bernhard Schölkopf, Thomas Brox, Peter Gehler  
-(Jun 2021) 
+
 
 https://arxiv.org/abs/2106.08265
 
@@ -38,5 +40,5 @@ python train.py --phase 'train or test' --dataset_path '...\mvtec_anomaly_detect
 | mean | 0.990 | - | 0.980 | - |
 
 ### Code Reference
-https://github.com/google/active-learning
+https://github.com/google/active-learning  
 https://github.com/xiahaifeng1995/PaDiM-Anomaly-Detection-Localization-master
