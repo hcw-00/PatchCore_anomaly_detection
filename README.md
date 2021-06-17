@@ -20,7 +20,7 @@ pip install -r requirements.txt
 python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 3'
 ~~~
 
-### MVTecAD AUROC score (mean of n trials)
+### MVTecAD AUROC score (PatchCore-1%, mean of n trials)
 | Category | Paper<br>(image-level) | This code<br>(image-level) | Paper<br>(pixel-level) | This code<br>(pixel-level) |
 | :-----: | :-: | :-: | :-: | :-: |
 | carpet | 0.980 | 0.995(1) | 0.989 | 0.989(1) |
