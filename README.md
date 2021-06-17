@@ -1,4 +1,4 @@
-# PatchCore_anomaly_detection
+# PatchCore anomaly detection
 Unofficial implementation of PatchCore anomaly detection  
 
 
