@@ -21,6 +21,9 @@ import string
 import random
 from sklearn.metrics import confusion_matrix
 import pickle
+from sampling_methods.kcenter_greedy import kCenterGreedy
+from sklearn.random_projection import johnson_lindenstrauss_min_dim
+from sklearn.random_projection import SparseRandomProjection
 
 def copy_files(src, dst, ignores=[]):
     src_files = os.listdir(src)
@@ -339,15 +342,21 @@ class STPM(pl.LightningModule):
         features = self(x)
         # Embedding concat
         embedding_ = embedding_concat(features[0], features[1])
-        self.embedding_list.extend(reshape_embedding(embedding_))
+        self.embedding_list.extend(reshape_embedding(np.array(embedding_)))
         print(len(self.embedding_list))
         print(self.embedding_list[-1].shape)
-        with open('embedding.pickle', 'wb') as f:
-            pickle.dump(self.embedding_list, f)
         
-    def training_epoch_end(self): # Coreset Subsampling
-        print()
-        return
+    def training_epoch_end(self, outputs): 
+        self.embedding_list = np.array(self.embedding_list)
+        # Coreset Subsampling
+        randomprojector = SparseRandomProjection(100)
+        embedding_list_small = randomprojector.fit_transform(self.embedding_list)
+        selector = kCenterGreedy(embedding_list_small,0,0)
+        selected_idx = selector.select_batch(model=None, already_selected=[0, 1], N=100)
+        embedding_coreset = embedding_list_small[selected_idx]
+        # johnson_lindenstrauss_min_dim, random linear projections
+        with open('embedding.pickle', 'wb') as f:
+            pickle.dump(embedding_coreset, f)
 
     def test_step(self, batch, batch_idx): # Nearest Neighbour Search
         x, gt, label, file_name, x_type = batch
@@ -416,6 +425,8 @@ def get_args():
     return args
 
 if __name__ == '__main__':
+
+    print(kCenterGreedy)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args = get_args()
