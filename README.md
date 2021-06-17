@@ -10,8 +10,7 @@ Karsten Roth, Latha Pemula, Joaquin Zepeda, Bernhard Schölkopf, Thomas Brox, Pe
 https://arxiv.org/abs/2106.08265
 
 notice(21/06/18) :  
-This code is not yet verified.
-
+This code is not yet verified. Any feedback is appreciated.  
 
 ### Usage 
 ~~~
