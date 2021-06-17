@@ -1,5 +1,5 @@
 # PatchCore anomaly detection
-Unofficial implementation of PatchCore anomaly detection  
+Unofficial implementation of PatchCore(new SOTA) anomaly detection model
 
 
 Original Paper : 
