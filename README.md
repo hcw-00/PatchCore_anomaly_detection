@@ -17,7 +17,7 @@ This code is not yet verified.
 ~~~
 # python 3.6
 pip install -r requirements.txt
-python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 3'
+python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 3'
 ~~~
 
 ### MVTecAD AUROC score (mean of n trials)
@@ -26,7 +26,7 @@ python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection
 | carpet | 0.980 | 0.995(1) | 0.989 | 0.989(1) |
 | grid | 0.986 | 0.899(1) | 0.986 | 0.978(1) |
 | leather | 1.000 | 1.000 | 0.993 | 0.992(1) |
-| tile | 0.994 | - | 0.961 | - |
+| tile | 0.994 | 0.981(1) | 0.961 | 0.932(1) |
 | wood | 0.992 | - | 0.951 | - |
 | bottle | 1.000 | - | 0.985 | - |
 | cable | 0.993 | - | 0.982 | - |
