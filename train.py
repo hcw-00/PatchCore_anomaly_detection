@@ -302,24 +302,86 @@ class STPM(pl.LightningModule):
     def training_step(self, batch, batch_idx): # save locally aware patch features
         x, _, _, file_name, _ = batch
         features = self(x)
-        # Embedding concat
-        embedding_ = embedding_concat(features[0], features[1])
-        m = torch.nn.AdaptiveAvgPool2d(embedding_.shape[-2:])
-        embedding = m(embedding_)
+        embeddings = []
+        for feature in features:
+            m = torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
+            embeddings.append(m(feature))
+        embedding = embedding_concat(embeddings[0], embeddings[1])
         self.embedding_list.extend(reshape_embedding(np.array(embedding)))
-        
+
+    # def training_epoch_end(self, outputs): 
+    #     total_embeddings = np.array(self.embedding_list)
+    #     # Random projection
+    #     self.randomprojector = SparseRandomProjection(n_components='auto', eps=0.9) # 'auto' => Johnson-Lindenstrauss lemma
+    #     embedding_small = self.randomprojector.fit_transform(total_embeddings)
+    #     # Coreset Subsampling
+    #     selector = kCenterGreedy(embedding_small,0,0)
+    #     selected_idx = selector.select_batch(model=None, already_selected=[], N=int(embedding_small.shape[0]*args.coreset_sampling_ratio))
+    #     self.embedding_coreset = embedding_small[selected_idx]
+    #     print('initial embedding size : ', total_embeddings.shape)
+    #     print('final embedding size : ', self.embedding_coreset.shape)
+    #     with open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'wb') as f:
+    #         pickle.dump(self.embedding_coreset, f)
+    #     with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
+    #         pickle.dump(self.randomprojector, f)
+
     def training_epoch_end(self, outputs): 
         total_embeddings = np.array(self.embedding_list)
-        # Coreset Subsampling
+        # Random projection
         self.randomprojector = SparseRandomProjection(n_components='auto', eps=0.9) # 'auto' => Johnson-Lindenstrauss lemma
-        embedding_small = self.randomprojector.fit_transform(total_embeddings)
-        selector = kCenterGreedy(embedding_small,0,0)
-        selected_idx = selector.select_batch(model=None, already_selected=[0, 1], N=int(embedding_small.shape[0]*args.coreset_sampling_ratio))
-        self.embedding_coreset = embedding_small[selected_idx]
+        # embedding_small = self.randomprojector.fit_transform(total_embeddings)
+        self.randomprojector.fit(total_embeddings)
+        # Coreset Subsampling
+        # selector = kCenterGreedy(embedding_small,0,0)
+        # selected_idx = selector.select_batch(model=None, already_selected=[], N=int(embedding_small.shape[0]*args.coreset_sampling_ratio))
+        # self.embedding_coreset = embedding_small[selected_idx]
+
+        selector = kCenterGreedy(total_embeddings,0,0)
+        selected_idx = selector.select_batch(model=self.randomprojector, already_selected=[], N=int(total_embeddings.shape[0]*args.coreset_sampling_ratio))
+        self.embedding_coreset = total_embeddings[selected_idx]
+        
+        print('initial embedding size : ', total_embeddings.shape)
+        print('final embedding size : ', self.embedding_coreset.shape)
         with open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'wb') as f:
             pickle.dump(self.embedding_coreset, f)
         with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
             pickle.dump(self.randomprojector, f)
+
+    # def test_step(self, batch, batch_idx): # Nearest Neighbour Search
+    #     self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
+    #     self.randomprojector = pickle.load(open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'rb'))
+    #     x, gt, label, file_name, x_type = batch
+    #     # extract embedding
+    #     features = self(x)
+    #     embeddings = []
+    #     for feature in features:
+    #         m = torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
+    #         embeddings.append(m(feature))
+    #     embedding_ = embedding_concat(embeddings[0], embeddings[1])
+    #     embedding_test = np.array(reshape_embedding(np.array(embedding_)))
+    #     # Random projection
+    #     embedding_small_test = self.randomprojector.transform(embedding_test)
+    #     # NN
+    #     nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
+    #     score_patches, _ = nbrs.kneighbors(embedding_small_test)
+    #     anomaly_map = score_patches[:,0].reshape((28,28))
+    #     N_b = score_patches[np.argmax(score_patches[:,0])]
+    #     w = (1 - (np.max(np.exp(N_b))/np.sum(np.exp(N_b))))
+    #     score = w*max(score_patches[:,0]) # Image-level score
+        
+    #     gt_resized = transforms.Compose([transforms.Resize(args.load_size), transforms.CenterCrop(args.input_size)])(gt)
+    #     gt_np = gt_resized.cpu().numpy()[0][0].astype(int)
+    #     anomaly_map_resized = cv2.resize(anomaly_map, (args.input_size, args.input_size))
+    #     anomaly_map_resized_blur = gaussian_filter(anomaly_map_resized, sigma=4)  # todo
+    #     self.gt_list_px_lvl.extend(gt_np.ravel())
+    #     self.pred_list_px_lvl.extend(anomaly_map_resized_blur.ravel())
+    #     self.gt_list_img_lvl.append(label.cpu().numpy()[0])
+    #     self.pred_list_img_lvl.append(score)
+    #     self.img_path_list.extend(file_name)
+    #     # save images
+    #     x = self.inv_normalize(x)
+    #     input_x = cv2.cvtColor(x.permute(0,2,3,1).cpu().numpy()[0]*255, cv2.COLOR_BGR2RGB)
+    #     self.save_anomaly_map(anomaly_map_resized_blur, input_x, gt_np*255, file_name[0], x_type[0])
 
     def test_step(self, batch, batch_idx): # Nearest Neighbour Search
         self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
@@ -327,12 +389,18 @@ class STPM(pl.LightningModule):
         x, gt, label, file_name, x_type = batch
         # extract embedding
         features = self(x)
-        embedding_ = embedding_concat(features[0], features[1])
+        embeddings = []
+        for feature in features:
+            m = torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
+            embeddings.append(m(feature))
+        embedding_ = embedding_concat(embeddings[0], embeddings[1])
         embedding_test = np.array(reshape_embedding(np.array(embedding_)))
-        embedding_small_test = self.randomprojector.transform(embedding_test)
+        # Random projection
+        # embedding_small_test = self.randomprojector.transform(embedding_test)
         # NN
         nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
-        score_patches, _ = nbrs.kneighbors(embedding_small_test)
+        # score_patches, _ = nbrs.kneighbors(embedding_small_test)
+        score_patches, _ = nbrs.kneighbors(embedding_test)
         anomaly_map = score_patches[:,0].reshape((28,28))
         N_b = score_patches[np.argmax(score_patches[:,0])]
         w = (1 - (np.max(np.exp(N_b))/np.sum(np.exp(N_b))))
@@ -380,17 +448,17 @@ class STPM(pl.LightningModule):
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
     parser.add_argument('--phase', choices=['train','test'], default='train')
-    parser.add_argument('--dataset_path', default=r'/home/changwoo/hdd/datasets/mvtec_anomaly_detection') #/home/changwoo/hdd/datasets/mvtec_anomaly_detection/tile') #'D:\Dataset\REVIEW_BOE_HKC_WHTM\REVIEW_for_anomaly\HKC'
-    parser.add_argument('--category', default='leather')
+    parser.add_argument('--dataset_path', default=r'D:\Dataset\mvtec_anomaly_detection')#'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')
+    parser.add_argument('--category', default='carpet')
     parser.add_argument('--num_epochs', default=1)
     parser.add_argument('--batch_size', default=32)
     parser.add_argument('--load_size', default=256) # 256
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.01)
-    parser.add_argument('--project_root_path', default=r'/home/changwoo/hdd/project_results/patchcore/test')
+    parser.add_argument('--project_root_path', default=r'D:\Project_Train_Results\mvtec_anomaly_detection\210621\test2') #'/home/changwoo/hdd/project_results/patchcore/test')
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
-    parser.add_argument('--n_neighbors', type=int, default=3)
+    parser.add_argument('--n_neighbors', type=int, default=9)
     parser.add_argument('--weights_file_version', type=str, default=None) #'version_1'
     args = parser.parse_args()
     return args
@@ -400,7 +468,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args = get_args()
     
-    trainer = pl.Trainer.from_argparse_args(args, default_root_dir=os.path.join(args.project_root_path, args.category), max_epochs=args.num_epochs, gpus=1) #, check_val_every_n_epoch=args.val_freq,  num_sanity_val_steps=0) # ,fast_dev_run=True)
+    trainer = pl.Trainer.from_argparse_args(args, default_root_dir=os.path.join(args.project_root_path, args.category), max_epochs=args.num_epochs, gpus=[0]) #, check_val_every_n_epoch=args.val_freq,  num_sanity_val_steps=0) # ,fast_dev_run=True)
     
     if args.phase == 'train':
         model = STPM(hparams=args)

@@ -11,27 +11,21 @@ https://arxiv.org/abs/2106.08265
 
 notice(21/06/18) :  
 This code is not yet verified. Any feedback is appreciated.  
-updates(21/06/21) :  
-I Slightly modified procedure of getting "locally aware patch features".  
-Modified that random linear projection work inside coreset selection.  
-(I used sklearn's SparseRandomProjection(ep=0.9) for random projection. I'm not confident with this.)  
-I think exact value of "b nearest patch-features" is not presented in the paper. I just set 9. (args.n_neighbors)  
-In terms of NN search, author used "faiss". but not implemented in this code yet.  
 
 ### Usage 
 ~~~
-# install python 3.6, torch==1.8.1, torchvision==0.9.1
+# python 3.6
 pip install -r requirements.txt
-python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 3'
+python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 9'
 ~~~
 
 ### MVTecAD AUROC score (PatchCore-1%, mean of n trials)
 | Category | Paper<br>(image-level) | This code<br>(image-level) | Paper<br>(pixel-level) | This code<br>(pixel-level) |
 | :-----: | :-: | :-: | :-: | :-: |
-| carpet | 0.980 | 0.997(1) | 0.989 | 0.990(1) |
-| grid | 0.986 | 0.941(1) | 0.986 | 0.983(1) |
-| leather | 1.000 | 1.000(1) | 0.993 | 0.991(1) |
-| tile | 0.994 | - | 0.961 | - |
+| carpet | 0.980 | 0.995(1) | 0.989 | 0.989(1) |
+| grid | 0.986 | 0.899(1) | 0.986 | 0.978(1) |
+| leather | 1.000 | 1.000 | 0.993 | 0.992(1) |
+| tile | 0.994 | 0.981(1) | 0.961 | 0.932(1) |
 | wood | 0.992 | - | 0.951 | - |
 | bottle | 1.000 | - | 0.985 | - |
 | cable | 0.993 | - | 0.982 | - |
