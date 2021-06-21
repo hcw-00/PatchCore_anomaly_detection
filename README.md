@@ -8,7 +8,7 @@ Karsten Roth, Latha Pemula, Joaquin Zepeda, Bernhard Schölkopf, Thomas Brox, Pe
 
 
 https://arxiv.org/abs/2106.08265
-
+https://paperswithcode.com/sota/anomaly-detection-on-mvtec-ad
 
 ![plot](./capture/capture.jpg)
 
