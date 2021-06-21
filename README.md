@@ -31,7 +31,7 @@ python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection
 | carpet | 0.980 | 0.997(1) | 0.989 | 0.990(1) |
 | grid | 0.986 | 0.941(1) | 0.986 | 0.983(1) |
 | leather | 1.000 | 1.000(1) | 0.993 | 0.991(1) |
-| tile | 0.994 | 0.982(1) | 0.961 | 0.932(2) |
+| tile | 0.994 | 0.982(1) | 0.961 | 0.932(1) |
 | wood | 0.992 | 0.999(1) | 0.951 | 0.976(1) |
 | bottle | 1.000 | 0.986(1) | 0.985 | 0.941(1) |
 | cable | 0.993 | 0.970(1) | 0.982 | 0.955(1) |
@@ -43,7 +43,7 @@ python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection
 | toothbrush | 1.000 | - | 0.985 | - |
 | transistor | 0.999 | -| 0.949 | - |
 | zipper | 0.992 | - | 0.988 | - |
-| mean | 0.990 | - | 0.980 | - |
+| mean | 0.990 | 0.982 | 0.980 | 0.970 |
 
 ### Code Reference
 https://github.com/google/active-learning  
