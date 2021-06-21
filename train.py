@@ -309,22 +309,6 @@ class STPM(pl.LightningModule):
         embedding = embedding_concat(embeddings[0], embeddings[1])
         self.embedding_list.extend(reshape_embedding(np.array(embedding)))
 
-    # def training_epoch_end(self, outputs): 
-    #     total_embeddings = np.array(self.embedding_list)
-    #     # Random projection
-    #     self.randomprojector = SparseRandomProjection(n_components='auto', eps=0.9) # 'auto' => Johnson-Lindenstrauss lemma
-    #     embedding_small = self.randomprojector.fit_transform(total_embeddings)
-    #     # Coreset Subsampling
-    #     selector = kCenterGreedy(embedding_small,0,0)
-    #     selected_idx = selector.select_batch(model=None, already_selected=[], N=int(embedding_small.shape[0]*args.coreset_sampling_ratio))
-    #     self.embedding_coreset = embedding_small[selected_idx]
-    #     print('initial embedding size : ', total_embeddings.shape)
-    #     print('final embedding size : ', self.embedding_coreset.shape)
-    #     with open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'wb') as f:
-    #         pickle.dump(self.embedding_coreset, f)
-    #     with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
-    #         pickle.dump(self.randomprojector, f)
-
     def training_epoch_end(self, outputs): 
         total_embeddings = np.array(self.embedding_list)
         # Random projection
@@ -346,42 +330,6 @@ class STPM(pl.LightningModule):
             pickle.dump(self.embedding_coreset, f)
         with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
             pickle.dump(self.randomprojector, f)
-
-    # def test_step(self, batch, batch_idx): # Nearest Neighbour Search
-    #     self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
-    #     self.randomprojector = pickle.load(open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'rb'))
-    #     x, gt, label, file_name, x_type = batch
-    #     # extract embedding
-    #     features = self(x)
-    #     embeddings = []
-    #     for feature in features:
-    #         m = torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
-    #         embeddings.append(m(feature))
-    #     embedding_ = embedding_concat(embeddings[0], embeddings[1])
-    #     embedding_test = np.array(reshape_embedding(np.array(embedding_)))
-    #     # Random projection
-    #     embedding_small_test = self.randomprojector.transform(embedding_test)
-    #     # NN
-    #     nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
-    #     score_patches, _ = nbrs.kneighbors(embedding_small_test)
-    #     anomaly_map = score_patches[:,0].reshape((28,28))
-    #     N_b = score_patches[np.argmax(score_patches[:,0])]
-    #     w = (1 - (np.max(np.exp(N_b))/np.sum(np.exp(N_b))))
-    #     score = w*max(score_patches[:,0]) # Image-level score
-        
-    #     gt_resized = transforms.Compose([transforms.Resize(args.load_size), transforms.CenterCrop(args.input_size)])(gt)
-    #     gt_np = gt_resized.cpu().numpy()[0][0].astype(int)
-    #     anomaly_map_resized = cv2.resize(anomaly_map, (args.input_size, args.input_size))
-    #     anomaly_map_resized_blur = gaussian_filter(anomaly_map_resized, sigma=4)  # todo
-    #     self.gt_list_px_lvl.extend(gt_np.ravel())
-    #     self.pred_list_px_lvl.extend(anomaly_map_resized_blur.ravel())
-    #     self.gt_list_img_lvl.append(label.cpu().numpy()[0])
-    #     self.pred_list_img_lvl.append(score)
-    #     self.img_path_list.extend(file_name)
-    #     # save images
-    #     x = self.inv_normalize(x)
-    #     input_x = cv2.cvtColor(x.permute(0,2,3,1).cpu().numpy()[0]*255, cv2.COLOR_BGR2RGB)
-    #     self.save_anomaly_map(anomaly_map_resized_blur, input_x, gt_np*255, file_name[0], x_type[0])
 
     def test_step(self, batch, batch_idx): # Nearest Neighbour Search
         self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
@@ -430,26 +378,26 @@ class STPM(pl.LightningModule):
         print('test_epoch_end')
         values = {'pixel_auc': pixel_auc, 'img_auc': img_auc}
         self.log_dict(values)
-        anomaly_list = []
-        normal_list = []
-        for i in range(len(self.gt_list_img_lvl)):
-            if self.gt_list_img_lvl[i] == 1:
-                anomaly_list.append(self.pred_list_img_lvl[i])
-            else:
-                normal_list.append(self.pred_list_img_lvl[i])
+        # anomaly_list = []
+        # normal_list = []
+        # for i in range(len(self.gt_list_img_lvl)):
+        #     if self.gt_list_img_lvl[i] == 1:
+        #         anomaly_list.append(self.pred_list_img_lvl[i])
+        #     else:
+        #         normal_list.append(self.pred_list_img_lvl[i])
 
-        # thresholding
-        # cal_confusion_matrix(self.gt_list_img_lvl, self.pred_list_img_lvl, img_path_list = self.img_path_list, thresh = 0.00097)
-        # print()
-        with open(args.project_root_path + r'/results.txt', 'a') as f:
-            f.write(args.category + ' : ' + str(values) + '\n')
+        # # thresholding
+        # # cal_confusion_matrix(self.gt_list_img_lvl, self.pred_list_img_lvl, img_path_list = self.img_path_list, thresh = 0.00097)
+        # # print()
+        # with open(args.project_root_path + r'/results.txt', 'a') as f:
+        #     f.write(args.category + ' : ' + str(values) + '\n')
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
     parser.add_argument('--phase', choices=['train','test'], default='train')
     parser.add_argument('--dataset_path', default=r'D:\Dataset\mvtec_anomaly_detection')#'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')
-    parser.add_argument('--category', default='carpet')
+    parser.add_argument('--category', default='tile')
     parser.add_argument('--num_epochs', default=1)
     parser.add_argument('--batch_size', default=32)
     parser.add_argument('--load_size', default=256) # 256
