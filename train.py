@@ -1,28 +1,21 @@
-# disabled self.input_size
-
 import argparse
 import torch
 from torch.nn import functional as F
 from torch import nn
-from torchvision import transforms, datasets
+from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 import cv2
 import numpy as np
 import os
 import glob
 import shutil
-import time
-from torchvision.models import resnet18
 from PIL import Image
 from sklearn.metrics import roc_auc_score
 from torch import nn
 import pytorch_lightning as pl
-import string
-import random
 from sklearn.metrics import confusion_matrix
 import pickle
 from sampling_methods.kcenter_greedy import kCenterGreedy
-# from sklearn.random_projection import johnson_lindenstrauss_min_dim
 from sklearn.random_projection import SparseRandomProjection
 from sklearn.neighbors import NearestNeighbors
 from scipy.ndimage import gaussian_filter
@@ -53,9 +46,6 @@ def prep_dirs(root):
     os.makedirs(source_code_save_path, exist_ok=True)
     copy_files('./', source_code_save_path, ['.git','.vscode','__pycache__','logs','README','samples','LICENSE']) # copy source code
     return embeddings_path, sample_path, source_code_save_path
-
-def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
 
 def auto_select_weights_file(weights_file_version):
     print()
@@ -167,12 +157,6 @@ class MVTecDataset(Dataset):
         return img, gt, label, os.path.basename(img_path[:-4]), img_type
 
 
-def show_cam_on_image(img, anomaly_map):
-    heatmap = cv2.applyColorMap(np.uint8(anomaly_map), cv2.COLORMAP_JET)
-    cam = np.float32(heatmap) + np.float32(img)
-    cam = cam / np.max(cam)
-    return np.uint8(255 * cam)
-
 def cvt2heatmap(gray):
     heatmap = cv2.applyColorMap(np.uint8(gray), cv2.COLORMAP_JET)
     return heatmap
@@ -226,7 +210,6 @@ class STPM(pl.LightningModule):
 
         self.model = torch.hub.load('pytorch/vision:v0.9.0', 'wide_resnet50_2', pretrained=True)
 
-        # self.model_t = resnet18(pretrained=True).eval()
         for param in self.model.parameters():
             param.requires_grad = False
 
@@ -271,7 +254,6 @@ class STPM(pl.LightningModule):
         hm_on_img = heatmap_on_image(heatmap, input_img)
 
         # save images
-        # file_name = id_generator() # random id
         cv2.imwrite(os.path.join(self.sample_path, f'{x_type}_{file_name}.jpg'), input_img)
         cv2.imwrite(os.path.join(self.sample_path, f'{x_type}_{file_name}_amap.jpg'), anomaly_map_norm_hm)
         cv2.imwrite(os.path.join(self.sample_path, f'{x_type}_{file_name}_amap_on_img.jpg'), hm_on_img)
@@ -319,7 +301,6 @@ class STPM(pl.LightningModule):
         # selector = kCenterGreedy(embedding_small,0,0)
         # selected_idx = selector.select_batch(model=None, already_selected=[], N=int(embedding_small.shape[0]*args.coreset_sampling_ratio))
         # self.embedding_coreset = embedding_small[selected_idx]
-
         selector = kCenterGreedy(total_embeddings,0,0)
         selected_idx = selector.select_batch(model=self.randomprojector, already_selected=[], N=int(total_embeddings.shape[0]*args.coreset_sampling_ratio))
         self.embedding_coreset = total_embeddings[selected_idx]
@@ -328,12 +309,12 @@ class STPM(pl.LightningModule):
         print('final embedding size : ', self.embedding_coreset.shape)
         with open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'wb') as f:
             pickle.dump(self.embedding_coreset, f)
-        with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
-            pickle.dump(self.randomprojector, f)
+        # with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
+        #     pickle.dump(self.randomprojector, f)
 
     def test_step(self, batch, batch_idx): # Nearest Neighbour Search
         self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
-        self.randomprojector = pickle.load(open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'rb'))
+        # self.randomprojector = pickle.load(open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'rb'))
         x, gt, label, file_name, x_type = batch
         # extract embedding
         features = self(x)
@@ -392,18 +373,17 @@ class STPM(pl.LightningModule):
         # with open(args.project_root_path + r'/results.txt', 'a') as f:
         #     f.write(args.category + ' : ' + str(values) + '\n')
 
-
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
     parser.add_argument('--phase', choices=['train','test'], default='train')
     parser.add_argument('--dataset_path', default=r'D:\Dataset\mvtec_anomaly_detection')#'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')
-    parser.add_argument('--category', default='metal_nut')
+    parser.add_argument('--category', default='zipper')
     parser.add_argument('--num_epochs', default=1)
     parser.add_argument('--batch_size', default=32)
     parser.add_argument('--load_size', default=256) # 256
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.01)
-    parser.add_argument('--project_root_path', default=r'D:\Project_Train_Results\mvtec_anomaly_detection\210621\test2') #'/home/changwoo/hdd/project_results/patchcore/test')
+    parser.add_argument('--project_root_path', default=r'D:\Project_Train_Results\mvtec_anomaly_detection\210622\test') #'/home/changwoo/hdd/project_results/patchcore/test')
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
@@ -428,7 +408,6 @@ if __name__ == '__main__':
         
         if weights_file_path != None:
             model = STPM(hparams=args).load_from_checkpoint(weights_file_path)
-            # model.load_from_checkpoint(weights_file_path) # separating "load_from_checkpoint" seems does not load weights properly.
             trainer.test(model)
         else:
             print('Weights file is not found!')

@@ -9,6 +9,10 @@ Karsten Roth, Latha Pemula, Joaquin Zepeda, Bernhard Schölkopf, Thomas Brox, Pe
 
 https://arxiv.org/abs/2106.08265
 
+
+![plot](./capture/capture.jpg)
+
+
 notice(21/06/18) :  
 This code is not yet verified. Any feedback is appreciated.  
 updates(21/06/21) :  
@@ -38,13 +42,15 @@ python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection
 | capsule | 0.980 | 0.949(1) | 0.988 | 0.987(1) |
 | hazelnut | 1.000 | 0.997(1) | 0.986 | 0.982(1) |
 | metal nut | 0.997 | 0.997(1) | 0.984 | 0.962(1) |
-| pill | 0.970 | - | 0.971 | - |
-| screw | 0.964 | - | 0.992 | - |
-| toothbrush | 1.000 | - | 0.985 | - |
-| transistor | 0.999 | -| 0.949 | - |
-| zipper | 0.992 | - | 0.988 | - |
-| mean | 0.990 | 0.982 | 0.980 | 0.970 |
+| pill | 0.970 | 0.918(1) | 0.971 | 0.941(1) |
+| screw | 0.964 | 0.967(1) | 0.992 | 0.987(1) |
+| toothbrush | 1.000 | 0.997(1) | 0.985 | 0.984(1) |
+| transistor | 0.999 | 0.960(1) | 0.949 | 0.894(1) |
+| zipper | 0.992 | 0.968(1) | 0.988 | 0.987(1) |
+| mean | 0.990 | 0.975 | 0.980 | 0.966 |
 
 ### Code Reference
+kcenter algorithm :  
 https://github.com/google/active-learning  
+embedding concat function :  
 https://github.com/xiahaifeng1995/PaDiM-Anomaly-Detection-Localization-master
