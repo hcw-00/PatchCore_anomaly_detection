@@ -47,30 +47,6 @@ def prep_dirs(root):
     copy_files('./', source_code_save_path, ['.git','.vscode','__pycache__','logs','README','samples','LICENSE']) # copy source code
     return embeddings_path, sample_path, source_code_save_path
 
-def auto_select_weights_file(weights_file_version):
-    print()
-    version_list = glob.glob(os.path.join(args.project_root_path, args.category) + '/lightning_logs/version_*')
-    version_list.sort(reverse=True, key=lambda x: os.path.getmtime(x))
-    if weights_file_version != None:
-        version_list = [os.path.join(args.project_root_path, args.category) + '/lightning_logs/' + weights_file_version] + version_list
-    for i in range(len(version_list)):
-        # if os.path.exists(os.path.join(version_list[i],'checkpoints')):
-        weights_file_path = glob.glob(os.path.join(version_list[i],'checkpoints')+'/*')
-        if len(weights_file_path) == 0:
-            if weights_file_version != None and i == 0:
-                print(f'Checkpoint of {weights_file_version} not found')
-            continue
-        else:
-            weights_file_path = weights_file_path[0]
-            if weights_file_path.split('.')[-1] != 'ckpt':
-                continue
-        print('Checkpoint found : ', weights_file_path)
-        print()
-        return weights_file_path
-    print('Checkpoint not found')
-    print()
-    return None
-
 def embedding_concat(x, y):
     # from https://github.com/xiahaifeng1995/PaDiM-Anomaly-Detection-Localization-master
     B, C1, H1, W1 = x.size()
@@ -172,9 +148,6 @@ def min_max_norm(image):
     a_min, a_max = image.min(), image.max()
     return (image-a_min)/(a_max - a_min)    
 
-def init_weights(m):
-    if type(m) == nn.Conv2d:
-        torch.nn.init.xavier_uniform(m.weight)
 
 def cal_confusion_matrix(y_true, y_pred_no_thresh, thresh, img_path_list):
     pred_thresh = []
@@ -377,7 +350,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
     parser.add_argument('--phase', choices=['train','test'], default='train')
     parser.add_argument('--dataset_path', default=r'D:\Dataset\mvtec_anomaly_detection')#'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')
-    parser.add_argument('--category', default='zipper')
+    parser.add_argument('--category', default='carpet')
     parser.add_argument('--num_epochs', default=1)
     parser.add_argument('--batch_size', default=32)
     parser.add_argument('--load_size', default=256) # 256
@@ -387,7 +360,6 @@ def get_args():
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
-    parser.add_argument('--weights_file_version', type=str, default=None) #'version_1'
     args = parser.parse_args()
     return args
 
@@ -397,18 +369,10 @@ if __name__ == '__main__':
     args = get_args()
     
     trainer = pl.Trainer.from_argparse_args(args, default_root_dir=os.path.join(args.project_root_path, args.category), max_epochs=args.num_epochs, gpus=[1]) #, check_val_every_n_epoch=args.val_freq,  num_sanity_val_steps=0) # ,fast_dev_run=True)
-    
+    model = STPM(hparams=args)
     if args.phase == 'train':
-        model = STPM(hparams=args)
         trainer.fit(model)
         trainer.test(model)
     elif args.phase == 'test':
-        # selet weights file.
-        weights_file_path = auto_select_weights_file(args.weights_file_version) # auto select if args.weights_file_version == None
-        
-        if weights_file_path != None:
-            model = STPM(hparams=args).load_from_checkpoint(weights_file_path)
-            trainer.test(model)
-        else:
-            print('Weights file is not found!')
+        trainer.test(model)
 
