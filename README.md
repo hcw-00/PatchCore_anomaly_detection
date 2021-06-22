@@ -16,9 +16,7 @@ https://paperswithcode.com/sota/anomaly-detection-on-mvtec-ad
 notice(21/06/18) :  
 This code is not yet verified. Any feedback is appreciated.  
 updates(21/06/21) :  
-- I Slightly modified procedure of getting "locally aware patch features".  
-- Modified that random linear projection work inside coreset selection.  
-(I used sklearn's SparseRandomProjection(ep=0.9) for random projection. I'm not confident with this.)  
+- I used sklearn's SparseRandomProjection(ep=0.9) for random projection. I'm not confident with this.
 - I think exact value of "b nearest patch-features" is not presented in the paper. I just set 9. (args.n_neighbors)  
 - In terms of NN search, author used "faiss". but not implemented in this code yet.  
 
