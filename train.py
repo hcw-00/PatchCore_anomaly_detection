@@ -75,14 +75,14 @@ mean_train = [0.485, 0.456, 0.406]
 std_train = [0.229, 0.224, 0.225]
 
 class MVTecDataset(Dataset):
-    def __init__(self, root, transform, input_size, phase):
+    def __init__(self, root, transform, gt_transform, phase):
         if phase=='train':
             self.img_path = os.path.join(root, 'train')
         else:
             self.img_path = os.path.join(root, 'test')
             self.gt_path = os.path.join(root, 'ground_truth')
         self.transform = transform
-        self.input_size = input_size
+        self.gt_transform = gt_transform
         # load dataset
         self.img_paths, self.gt_paths, self.labels, self.types = self.load_dataset() # self.labels => good : 0, anomaly : 1
 
@@ -124,12 +124,13 @@ class MVTecDataset(Dataset):
         img = Image.open(img_path).convert('RGB')
         img = self.transform(img)
         if gt == 0:
-            gt = torch.zeros([1, self.input_size, self.input_size])
+            gt = torch.zeros([1, img.size()[-2], img.size()[-2]])
         else:
             gt = Image.open(gt)
-            gt = gt.resize((self.input_size, self.input_size)) # intend to avoid ground-truth manipulation
-            gt = transforms.ToTensor()(gt)
+            gt = self.gt_transform(gt)
         
+        assert img.size()[1:] == gt.size()[1:], "image.size != gt.size !!!"
+
         return img, gt, label, os.path.basename(img_path[:-4]), img_type
 
 
@@ -199,6 +200,11 @@ class STPM(pl.LightningModule):
                         transforms.CenterCrop(args.input_size),
                         transforms.Normalize(mean=mean_train,
                                             std=std_train)])
+        self.gt_transforms = transforms.Compose([
+                        transforms.Resize((args.load_size, args.load_size)),
+                        transforms.ToTensor(),
+                        transforms.CenterCrop(args.input_size)])
+
         self.inv_normalize = transforms.Normalize(mean=[-0.485/0.229, -0.456/0.224, -0.406/0.255], std=[1/0.229, 1/0.224, 1/0.255])
 
     def init_results_list(self):
@@ -233,12 +239,12 @@ class STPM(pl.LightningModule):
         cv2.imwrite(os.path.join(self.sample_path, f'{x_type}_{file_name}_gt.jpg'), gt_img)
 
     def train_dataloader(self):
-        image_datasets = MVTecDataset(root=os.path.join(args.dataset_path,args.category), transform=self.data_transforms, input_size=args.input_size, phase='train')
+        image_datasets = MVTecDataset(root=os.path.join(args.dataset_path,args.category), transform=self.data_transforms, gt_transform=self.gt_transforms, phase='train')
         train_loader = DataLoader(image_datasets, batch_size=args.batch_size, shuffle=True, num_workers=0) #, pin_memory=True)
         return train_loader
 
     def test_dataloader(self):
-        test_datasets = MVTecDataset(root=os.path.join(args.dataset_path,args.category), transform=self.data_transforms, input_size=args.input_size, phase='test')
+        test_datasets = MVTecDataset(root=os.path.join(args.dataset_path,args.category), transform=self.data_transforms, gt_transform=self.gt_transforms, phase='test')
         test_loader = DataLoader(test_datasets, batch_size=1, shuffle=False, num_workers=0) #, pin_memory=True) # only work on batch_size=1, now.
         return test_loader
 
@@ -268,12 +274,8 @@ class STPM(pl.LightningModule):
         total_embeddings = np.array(self.embedding_list)
         # Random projection
         self.randomprojector = SparseRandomProjection(n_components='auto', eps=0.9) # 'auto' => Johnson-Lindenstrauss lemma
-        # embedding_small = self.randomprojector.fit_transform(total_embeddings)
         self.randomprojector.fit(total_embeddings)
         # Coreset Subsampling
-        # selector = kCenterGreedy(embedding_small,0,0)
-        # selected_idx = selector.select_batch(model=None, already_selected=[], N=int(embedding_small.shape[0]*args.coreset_sampling_ratio))
-        # self.embedding_coreset = embedding_small[selected_idx]
         selector = kCenterGreedy(total_embeddings,0,0)
         selected_idx = selector.select_batch(model=self.randomprojector, already_selected=[], N=int(total_embeddings.shape[0]*args.coreset_sampling_ratio))
         self.embedding_coreset = total_embeddings[selected_idx]
@@ -282,12 +284,9 @@ class STPM(pl.LightningModule):
         print('final embedding size : ', self.embedding_coreset.shape)
         with open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'wb') as f:
             pickle.dump(self.embedding_coreset, f)
-        # with open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'wb') as f:
-        #     pickle.dump(self.randomprojector, f)
 
     def test_step(self, batch, batch_idx): # Nearest Neighbour Search
         self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
-        # self.randomprojector = pickle.load(open(os.path.join(self.embedding_dir_path, 'randomprojector.pickle'), 'rb'))
         x, gt, label, file_name, x_type = batch
         # extract embedding
         features = self(x)
@@ -297,21 +296,18 @@ class STPM(pl.LightningModule):
             embeddings.append(m(feature))
         embedding_ = embedding_concat(embeddings[0], embeddings[1])
         embedding_test = np.array(reshape_embedding(np.array(embedding_)))
-        # Random projection
-        # embedding_small_test = self.randomprojector.transform(embedding_test)
         # NN
         nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
-        # score_patches, _ = nbrs.kneighbors(embedding_small_test)
         score_patches, _ = nbrs.kneighbors(embedding_test)
         anomaly_map = score_patches[:,0].reshape((28,28))
         N_b = score_patches[np.argmax(score_patches[:,0])]
         w = (1 - (np.max(np.exp(N_b))/np.sum(np.exp(N_b))))
         score = w*max(score_patches[:,0]) # Image-level score
         
-        gt_resized = transforms.Compose([transforms.Resize(args.load_size), transforms.CenterCrop(args.input_size)])(gt)
-        gt_np = gt_resized.cpu().numpy()[0][0].astype(int)
+        gt_np = gt.cpu().numpy()[0,0].astype(int)
         anomaly_map_resized = cv2.resize(anomaly_map, (args.input_size, args.input_size))
-        anomaly_map_resized_blur = gaussian_filter(anomaly_map_resized, sigma=4)  # todo
+        anomaly_map_resized_blur = gaussian_filter(anomaly_map_resized, sigma=4)
+        
         self.gt_list_px_lvl.extend(gt_np.ravel())
         self.pred_list_px_lvl.extend(anomaly_map_resized_blur.ravel())
         self.gt_list_img_lvl.append(label.cpu().numpy()[0])
@@ -348,7 +344,7 @@ class STPM(pl.LightningModule):
 
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
-    parser.add_argument('--phase', choices=['train','test'], default='train')
+    parser.add_argument('--phase', choices=['train','test'], default='test')
     parser.add_argument('--dataset_path', default=r'D:\Dataset\mvtec_anomaly_detection')#'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')
     parser.add_argument('--category', default='carpet')
     parser.add_argument('--num_epochs', default=1)
@@ -356,7 +352,7 @@ def get_args():
     parser.add_argument('--load_size', default=256) # 256
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.01)
-    parser.add_argument('--project_root_path', default=r'D:\Project_Train_Results\mvtec_anomaly_detection\210622\test') #'/home/changwoo/hdd/project_results/patchcore/test')
+    parser.add_argument('--project_root_path', default=r'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #'/home/changwoo/hdd/project_results/patchcore/test')
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
