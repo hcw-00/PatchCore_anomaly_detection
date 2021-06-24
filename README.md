@@ -18,13 +18,16 @@ This code is not yet verified. Any feedback is appreciated.
 updates(21/06/21) :  
 - I used sklearn's SparseRandomProjection(ep=0.9) for random projection. I'm not confident with this.
 - I think exact value of "b nearest patch-features" is not presented in the paper. I just set 9. (args.n_neighbors)  
-- In terms of NN search, author used "faiss". but not implemented in this code yet.  
+- In terms of NN search, author used "faiss". but not implemented in this code yet. 
+- sample embeddings/carpet/embedding.pickle => coreset_sampling_ratio=0.001  
 
 ### Usage 
 ~~~
 # install python 3.6, torch==1.8.1, torchvision==0.9.1
 pip install -r requirements.txt
-python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 3'
+python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 9'
+# for fast try just specify your mvtec dir path
+python train.py --phase test --dataset_path .../mvtec_anomaly_detection --project_root_path ./
 ~~~
 
 ### MVTecAD AUROC score (PatchCore-1%, mean of n trials)
