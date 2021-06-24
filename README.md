@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection --category carpet --project_root_path path/to/save/results --coreset_sampling_ratio 0.01 --n_neighbors 9'
 
-# for fast try just specify your mvtec dir path
+# for fast try just specify your dataset_path and run
 python train.py --phase test --dataset_path .../mvtec_anomaly_detection --project_root_path ./
 ~~~
 
