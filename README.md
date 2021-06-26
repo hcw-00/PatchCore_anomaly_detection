@@ -20,6 +20,8 @@ updates(21/06/21) :
 - I think exact value of "b nearest patch-features" is not presented in the paper. I just set 9. (args.n_neighbors)  
 - In terms of NN search, author used "faiss". but not implemented in this code yet. 
 - sample embeddings/carpet/embedding.pickle => coreset_sampling_ratio=0.001  
+updates(21/06/26) :  
+- A critical [issue](https://github.com/hcw-00/PatchCore_anomaly_detection/issues/3#issue-930229038) related to "locally aware patch" raised and fixed. but score table is not updated yet. 
 
 ### Usage 
 ~~~
