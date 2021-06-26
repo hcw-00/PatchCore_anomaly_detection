@@ -82,3 +82,35 @@ https://github.com/xiahaifeng1995/PaDiM-Anomaly-Detection-Localization-master
 | zipper | 0.992 | 0.968(1) | 0.988 | 0.987(1) |
 | mean | 0.990 | 0.975 | 0.980 | 0.966 |
 -->
+<!--
+carpet
+{'img_auc': 0.9907704654895666, 'pixel_auc': 0.988687705858456}
+grid
+{'img_auc': 0.974937343358396, 'pixel_auc': 0.9751171484318466}
+leather
+{'img_auc': 1.0, 'pixel_auc': 0.990535126453962}
+tile
+{'img_auc': 0.9935064935064934, 'pixel_auc': 0.9487486588602011}
+wood
+{'img_auc': 0.9894736842105263, 'pixel_auc': 0.9361264985782104}
+bottle
+{'img_auc': 1.0, 'pixel_auc': 0.9812954295492088}
+cable
+{'img_auc': 0.994752623688156, 'pixel_auc': 0.9827989792867079}
+capsule
+{'img_auc': 0.9764658954926206, 'pixel_auc': 0.9889956357045827}
+hazelnut
+{'img_auc': 1.0, 'pixel_auc': 0.9846421467788966}
+matal nut
+{'img_auc': 0.9990224828934506, 'pixel_auc': 0.9838413598506198}
+pill
+{'img_auc': 0.9593562465902891, 'pixel_auc': 0.9772725707677767}
+screw
+{'img_auc': 0.9491699118671859, 'pixel_auc': 0.9774047713027145}
+toothbrush
+{'img_auc': 1.0, 'pixel_auc': 0.9862281871506898}
+transistor
+{'img_auc': 0.9995833333333333, 'pixel_auc': 0.9715171862282481}
+zipper
+{'img_auc': 0.9952731092436975, 'pixel_auc': 0.9838086200703351}
+>
