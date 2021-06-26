@@ -265,7 +265,7 @@ class STPM(pl.LightningModule):
         features = self(x)
         embeddings = []
         for feature in features:
-            m = torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
+            m = torch.nn.AvgPool2d(3, 1, 1) #torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
             embeddings.append(m(feature))
         embedding = embedding_concat(embeddings[0], embeddings[1])
         self.embedding_list.extend(reshape_embedding(np.array(embedding)))
@@ -292,7 +292,7 @@ class STPM(pl.LightningModule):
         features = self(x)
         embeddings = []
         for feature in features:
-            m = torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
+            m = torch.nn.AvgPool2d(3, 1, 1) #torch.nn.AdaptiveAvgPool2d(feature[0].shape[-2:])
             embeddings.append(m(feature))
         embedding_ = embedding_concat(embeddings[0], embeddings[1])
         embedding_test = np.array(reshape_embedding(np.array(embedding_)))
