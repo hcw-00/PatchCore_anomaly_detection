@@ -22,7 +22,7 @@ updates(21/06/21) :
 - sample embeddings/carpet/embedding.pickle => coreset_sampling_ratio=0.001  
 
 updates(21/06/26) :  
-- A critical [issue](https://github.com/hcw-00/PatchCore_anomaly_detection/issues/3#issue-930229038) related to "locally aware patch" raised and fixed. but score table is not updated yet. 
+- A critical [issue](https://github.com/hcw-00/PatchCore_anomaly_detection/issues/3#issue-930229038) related to "locally aware patch" raised and fixed. Score table is updated. 
 
 ### Usage 
 ~~~
@@ -35,6 +35,33 @@ python train.py --phase train or test --dataset_path .../mvtec_anomaly_detection
 python train.py --phase test --dataset_path .../mvtec_anomaly_detection --project_root_path ./
 ~~~
 
+### MVTecAD AUROC score (PatchCore-1%, mean of n trials)
+| Category | Paper<br>(image-level) | This code<br>(image-level) | Paper<br>(pixel-level) | This code<br>(pixel-level) |
+| :-----: | :-: | :-: | :-: | :-: |
+| carpet | 0.980 | 0.991(1) | 0.989 | 0.989(1) |
+| grid | 0.986 | 0.975(1) | 0.986 | 0.975(1) |
+| leather | 1.000 | 1.000(1) | 0.993 | 0.991(1) |
+| tile | 0.994 | 0.994(1) | 0.961 | 0.949(1) |
+| wood | 0.992 | 0.989(1) | 0.951 | 0.936(1) |
+| bottle | 1.000 | 1.000(1) | 0.985 | 0.981(1) |
+| cable | 0.993 | 0.995(1) | 0.982 | 0.983(1) |
+| capsule | 0.980 | 0.976(1) | 0.988 | 0.989(1) |
+| hazelnut | 1.000 | 1.000(1) | 0.986 | 0.985(1) |
+| metal nut | 0.997 | 0.999(1) | 0.984 | 0.984(1) |
+| pill | 0.970 | 0.959(1) | 0.971 | 0.977(1) |
+| screw | 0.964 | 0.949(1) | 0.992 | 0.977(1) |
+| toothbrush | 1.000 | 1.000(1) | 0.985 | 0.986(1) |
+| transistor | 0.999 | 1.000(1) | 0.949 | 0.972(1) |
+| zipper | 0.992 | 0.995(1) | 0.988 | 0.984(1) |
+| mean | 0.990 | 0.988 | 0.980 | 0.977 |
+
+### Code Reference
+kcenter algorithm :  
+https://github.com/google/active-learning  
+embedding concat function :  
+https://github.com/xiahaifeng1995/PaDiM-Anomaly-Detection-Localization-master
+
+<!--
 ### MVTecAD AUROC score (PatchCore-1%, mean of n trials)
 | Category | Paper<br>(image-level) | This code<br>(image-level) | Paper<br>(pixel-level) | This code<br>(pixel-level) |
 | :-----: | :-: | :-: | :-: | :-: |
@@ -54,9 +81,4 @@ python train.py --phase test --dataset_path .../mvtec_anomaly_detection --projec
 | transistor | 0.999 | 0.960(1) | 0.949 | 0.894(1) |
 | zipper | 0.992 | 0.968(1) | 0.988 | 0.987(1) |
 | mean | 0.990 | 0.975 | 0.980 | 0.966 |
-
-### Code Reference
-kcenter algorithm :  
-https://github.com/google/active-learning  
-embedding concat function :  
-https://github.com/xiahaifeng1995/PaDiM-Anomaly-Detection-Localization-master
+-->
