@@ -13,8 +13,6 @@ https://paperswithcode.com/sota/anomaly-detection-on-mvtec-ad
 ![plot](./capture/capture.jpg)
 
 
-notice(21/06/18) :  
-This code is not yet verified. Any feedback is appreciated.  
 updates(21/06/21) :  
 - I used sklearn's SparseRandomProjection(ep=0.9) for random projection. I'm not confident with this.
 - I think exact value of "b nearest patch-features" is not presented in the paper. I just set 9. (args.n_neighbors)  
