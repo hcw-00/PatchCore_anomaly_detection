@@ -411,17 +411,15 @@ class STPM(pl.LightningModule):
 
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
-    parser.add_argument('--phase', choices=['train', 'test'], default='train')
-    parser.add_argument('--dataset_path',
-                        default=r'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')  # 'D:\Dataset\mvtec_anomaly_detection')#
-    parser.add_argument('--category', default='bottle')
+    parser.add_argument('--phase', choices=['train','test'], default='train')
+    parser.add_argument('--dataset_path', default=r'/home/changwoo/hdd/datasets/mvtec_anomaly_detection') # 'D:\Dataset\mvtec_anomaly_detection')#
+    parser.add_argument('--category', default='carpet')
     parser.add_argument('--num_epochs', default=1)
-    parser.add_argument('--batch_size', default=1)
-    parser.add_argument('--load_size', default=256)  # 256
+    parser.add_argument('--batch_size', default=32)
+    parser.add_argument('--load_size', default=256) # 256
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.001)
-    parser.add_argument('--project_root_path',
-                        default=r'D:/deeplearning/PatchCore_anomaly_detection/')  # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
+    parser.add_argument('--project_root_path', default=r'/home/changwoo/hdd/project_results/patchcore/test') # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
