@@ -20,6 +20,67 @@ from sklearn.random_projection import SparseRandomProjection
 from sklearn.neighbors import NearestNeighbors
 from scipy.ndimage import gaussian_filter
 
+
+def distance_matrix(x, y=None, p=2):  # pairwise distance of vectors
+
+    y = x if type(y) == type(None) else y
+
+    n = x.size(0)
+    m = y.size(0)
+    d = x.size(1)
+
+    x = x.unsqueeze(1).expand(n, m, d)
+    y = y.unsqueeze(0).expand(n, m, d)
+
+    dist = torch.pow(x - y, p).sum(2)
+
+    return dist
+
+
+class NN():
+
+    def __init__(self, X=None, Y=None, p=2):
+        self.p = p
+        self.train(X, Y)
+
+    def train(self, X, Y):
+        self.train_pts = X
+        self.train_label = Y
+
+    def __call__(self, x):
+        return self.predict(x)
+
+    def predict(self, x):
+        if type(self.train_pts) == type(None) or type(self.train_label) == type(None):
+            name = self.__class__.__name__
+            raise RuntimeError(f"{name} wasn't trained. Need to execute {name}.train() first")
+
+        dist = distance_matrix(x, self.train_pts, self.p) ** (1 / self.p)
+        labels = torch.argmin(dist, dim=1)
+        return self.train_label[labels]
+
+class KNN(NN):
+
+    def __init__(self, X=None, Y=None, k=3, p=2):
+        self.k = k
+        super().__init__(X, Y, p)
+
+    def train(self, X, Y):
+        super().train(X, Y)
+        if type(Y) != type(None):
+            self.unique_labels = self.train_label.unique()
+
+    def predict(self, x):
+
+
+        dist = distance_matrix(x, self.train_pts, self.p) ** (1 / self.p)
+
+        knn = dist.topk(self.k, largest=False)
+
+
+        return knn
+
+
 def copy_files(src, dst, ignores=[]):
     src_files = os.listdir(src)
     for file_name in src_files:
@@ -297,8 +358,14 @@ class STPM(pl.LightningModule):
         embedding_ = embedding_concat(embeddings[0], embeddings[1])
         embedding_test = np.array(reshape_embedding(np.array(embedding_)))
         # NN
-        nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
-        score_patches, _ = nbrs.kneighbors(embedding_test)
+        #nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
+        #score_patches, _ = nbrs.kneighbors(embedding_test)
+        #
+        #Approximately 60x performance improvement
+        #tack time 1.9070019721984863 -> 0.03699636459350586
+        knn = KNN(torch.from_numpy(self.embedding_coreset).cuda(), k=9)
+        score_patches = knn(torch.from_numpy(embedding_test).cuda())[0].cpu().detach().numpy()
+
         anomaly_map = score_patches[:,0].reshape((28,28))
         N_b = score_patches[np.argmax(score_patches[:,0])]
         w = (1 - (np.max(np.exp(N_b))/np.sum(np.exp(N_b))))
@@ -344,15 +411,17 @@ class STPM(pl.LightningModule):
 
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
-    parser.add_argument('--phase', choices=['train','test'], default='train')
-    parser.add_argument('--dataset_path', default=r'/home/changwoo/hdd/datasets/mvtec_anomaly_detection') # 'D:\Dataset\mvtec_anomaly_detection')#
-    parser.add_argument('--category', default='carpet')
+    parser.add_argument('--phase', choices=['train', 'test'], default='train')
+    parser.add_argument('--dataset_path',
+                        default=r'/home/changwoo/hdd/datasets/mvtec_anomaly_detection')  # 'D:\Dataset\mvtec_anomaly_detection')#
+    parser.add_argument('--category', default='bottle')
     parser.add_argument('--num_epochs', default=1)
-    parser.add_argument('--batch_size', default=32)
-    parser.add_argument('--load_size', default=256) # 256
+    parser.add_argument('--batch_size', default=1)
+    parser.add_argument('--load_size', default=256)  # 256
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.001)
-    parser.add_argument('--project_root_path', default=r'/home/changwoo/hdd/project_results/patchcore/test') # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
+    parser.add_argument('--project_root_path',
+                        default=r'D:/deeplearning/PatchCore_anomaly_detection/')  # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
