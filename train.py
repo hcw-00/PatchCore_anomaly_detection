@@ -73,7 +73,8 @@ class KNN(NN):
     def predict(self, x):
 
 
-        dist = distance_matrix(x, self.train_pts, self.p) ** (1 / self.p)
+        # dist = distance_matrix(x, self.train_pts, self.p) ** (1 / self.p)
+        dist = torch.cdist(x, self.train_pts, self.p)
 
         knn = dist.topk(self.k, largest=False)
 
