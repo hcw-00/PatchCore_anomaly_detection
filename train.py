@@ -1,14 +1,22 @@
-import argparse
-import torch
-from torch.nn import functional as F
-from torch import nn
-from torchvision import transforms
+from sklearn.random_projection import SparseRandomProjection
+from sampling_methods.kcenter_greedy import kCenterGreedy
 from torch.utils.data import Dataset, DataLoader
-import cv2
+from sklearn.metrics import confusion_matrix
+from scipy.ndimage import gaussian_filter
+from sklearn.metrics import roc_auc_score
+from torch.nn import functional as F
+from torchvision import transforms
+import pytorch_lightning as pl
+from PIL import Image
 import numpy as np
-import os
-import glob
+import argparse
 import shutil
+import faiss
+import torch
+import glob
+import cv2
+import os
+
 from PIL import Image
 from sklearn.metrics import roc_auc_score
 from torch import nn
@@ -80,7 +88,6 @@ class KNN(NN):
 
 
         return knn
-
 
 def copy_files(src, dst, ignores=[]):
     src_files = os.listdir(src)
@@ -319,6 +326,10 @@ class STPM(pl.LightningModule):
         self.embedding_list = []
     
     def on_test_start(self):
+        self.index = faiss.read_index(os.path.join(self.embedding_dir_path,'index.faiss'))
+        if torch.cuda.is_available():
+            res = faiss.StandardGpuResources()
+            self.index = faiss.index_cpu_to_gpu(res, 0 ,self.index)
         self.init_results_list()
         self.embedding_dir_path, self.sample_path, self.source_code_save_path = prep_dirs(self.logger.log_dir)
         
@@ -344,11 +355,13 @@ class STPM(pl.LightningModule):
         
         print('initial embedding size : ', total_embeddings.shape)
         print('final embedding size : ', self.embedding_coreset.shape)
-        with open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'wb') as f:
-            pickle.dump(self.embedding_coreset, f)
+        #faiss
+        self.index = faiss.IndexFlatL2(self.embedding_coreset.shape[1])
+        self.index.add(self.embedding_coreset) 
+        faiss.write_index(self.index,  os.path.join(self.embedding_dir_path,'index.faiss'))
+
 
     def test_step(self, batch, batch_idx): # Nearest Neighbour Search
-        self.embedding_coreset = pickle.load(open(os.path.join(self.embedding_dir_path, 'embedding.pickle'), 'rb'))
         x, gt, label, file_name, x_type = batch
         # extract embedding
         features = self(x)
@@ -358,24 +371,14 @@ class STPM(pl.LightningModule):
             embeddings.append(m(feature))
         embedding_ = embedding_concat(embeddings[0], embeddings[1])
         embedding_test = np.array(reshape_embedding(np.array(embedding_)))
-        # NN
-        #nbrs = NearestNeighbors(n_neighbors=args.n_neighbors, algorithm='ball_tree', metric='minkowski', p=2).fit(self.embedding_coreset)
-        #score_patches, _ = nbrs.kneighbors(embedding_test)
-        #
-        #Approximately 60x performance improvement
-        #tack time 1.9070019721984863 -> 0.03699636459350586
-        knn = KNN(torch.from_numpy(self.embedding_coreset).cuda(), k=9)
-        score_patches = knn(torch.from_numpy(embedding_test).cuda())[0].cpu().detach().numpy()
-
+        score_patches, _ = self.index.search(embedding_test , k=args.n_neighbors)
         anomaly_map = score_patches[:,0].reshape((28,28))
         N_b = score_patches[np.argmax(score_patches[:,0])]
         w = (1 - (np.max(np.exp(N_b))/np.sum(np.exp(N_b))))
         score = w*max(score_patches[:,0]) # Image-level score
-        
         gt_np = gt.cpu().numpy()[0,0].astype(int)
         anomaly_map_resized = cv2.resize(anomaly_map, (args.input_size, args.input_size))
         anomaly_map_resized_blur = gaussian_filter(anomaly_map_resized, sigma=4)
-        
         self.gt_list_px_lvl.extend(gt_np.ravel())
         self.pred_list_px_lvl.extend(anomaly_map_resized_blur.ravel())
         self.gt_list_img_lvl.append(label.cpu().numpy()[0])
@@ -413,14 +416,14 @@ class STPM(pl.LightningModule):
 def get_args():
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
     parser.add_argument('--phase', choices=['train','test'], default='train')
-    parser.add_argument('--dataset_path', default=r'/home/changwoo/hdd/datasets/mvtec_anomaly_detection') # 'D:\Dataset\mvtec_anomaly_detection')#
-    parser.add_argument('--category', default='carpet')
+    parser.add_argument('--dataset_path', default=r'./MVTec') # 'D:\Dataset\mvtec_anomaly_detection')#
+    parser.add_argument('--category', default='hazelnut')
     parser.add_argument('--num_epochs', default=1)
     parser.add_argument('--batch_size', default=32)
     parser.add_argument('--load_size', default=256) # 256
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.001)
-    parser.add_argument('--project_root_path', default=r'/home/changwoo/hdd/project_results/patchcore/test') # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
+    parser.add_argument('--project_root_path', default=r'./test') # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
@@ -428,10 +431,8 @@ def get_args():
     return args
 
 if __name__ == '__main__':
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args = get_args()
-    
     trainer = pl.Trainer.from_argparse_args(args, default_root_dir=os.path.join(args.project_root_path, args.category), max_epochs=args.num_epochs, gpus=1) #, check_val_every_n_epoch=args.val_freq,  num_sanity_val_steps=0) # ,fast_dev_run=True)
     model = STPM(hparams=args)
     if args.phase == 'train':
