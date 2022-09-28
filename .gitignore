@@ -130,3 +130,9 @@ dmypy.json
 
 # embedding.pickle
 ./embeddings/
+
+*.png
+*.jpg
+*.ckpt
+test/*
+MVTec/*
