@@ -1,36 +1,24 @@
+import os
+import glob
+import shutil
+
+import numpy as np
+from PIL import Image
+import cv2
+
 from sklearn.random_projection import SparseRandomProjection
-from sampling_methods.kcenter_greedy import kCenterGreedy
-from torch.utils.data import Dataset, DataLoader
-from sklearn.metrics import confusion_matrix
-from scipy.ndimage import gaussian_filter
 from sklearn.metrics import roc_auc_score
+from sampling_methods.kcenter_greedy import kCenterGreedy
+from scipy.ndimage import gaussian_filter
+import torch
 from torch.nn import functional as F
 from torchvision import transforms
+from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from PIL import Image
-import numpy as np
-import argparse
-import shutil
 import faiss
-import torch
-import glob
-import cv2
-import os
-
-from PIL import Image
-from sklearn.metrics import roc_auc_score
-from torch import nn
-import pytorch_lightning as pl
-from sklearn.metrics import confusion_matrix
-import pickle
-from sampling_methods.kcenter_greedy import kCenterGreedy
-from sklearn.random_projection import SparseRandomProjection
-from sklearn.neighbors import NearestNeighbors
-from scipy.ndimage import gaussian_filter
 
 
 def distance_matrix(x, y=None, p=2):  # pairwise distance of vectors
-
     y = x if type(y) == type(None) else y
 
     n = x.size(0)
@@ -41,12 +29,10 @@ def distance_matrix(x, y=None, p=2):  # pairwise distance of vectors
     y = y.unsqueeze(0).expand(n, m, d)
 
     dist = torch.pow(x - y, p).sum(2)
-
     return dist
 
 
 class NN():
-
     def __init__(self, X=None, Y=None, p=2):
         self.p = p
         self.train(X, Y)
@@ -68,7 +54,6 @@ class NN():
         return self.train_label[labels]
 
 class KNN(NN):
-
     def __init__(self, X=None, Y=None, k=3, p=2):
         self.k = k
         super().__init__(X, Y, p)
@@ -79,32 +64,12 @@ class KNN(NN):
             self.unique_labels = self.train_label.unique()
 
     def predict(self, x):
-
-
-        # dist = distance_matrix(x, self.train_pts, self.p) ** (1 / self.p)
         dist = torch.cdist(x, self.train_pts, self.p)
-
         knn = dist.topk(self.k, largest=False)
-
-
         return knn
-
-def copy_files(src, dst, ignores=[]):
-    src_files = os.listdir(src)
-    for file_name in src_files:
-        ignore_check = [True for i in ignores if i in file_name]
-        if ignore_check:
-            continue
-        full_file_name = os.path.join(src, file_name)
-        if os.path.isfile(full_file_name):
-            shutil.copy(full_file_name, os.path.join(dst,file_name))
-        if os.path.isdir(full_file_name):
-            os.makedirs(os.path.join(dst, file_name), exist_ok=True)
-            copy_files(full_file_name, os.path.join(dst, file_name), ignores)
 
 def prep_dirs(root):
     # make embeddings dir
-    # embeddings_path = os.path.join(root, 'embeddings')
     embeddings_path = os.path.join('./', 'embeddings', args.category)
     os.makedirs(embeddings_path, exist_ok=True)
     # make sample dir
@@ -113,7 +78,6 @@ def prep_dirs(root):
     # make source code record dir & copy
     source_code_save_path = os.path.join(root, 'src')
     os.makedirs(source_code_save_path, exist_ok=True)
-    copy_files('./', source_code_save_path, ['.git','.vscode','__pycache__','logs','README','samples','LICENSE']) # copy source code
     return embeddings_path, sample_path, source_code_save_path
 
 def embedding_concat(x, y):
@@ -128,7 +92,6 @@ def embedding_concat(x, y):
         z[:, :, i, :, :] = torch.cat((x[:, :, i, :, :], y), 1)
     z = z.view(B, -1, H2 * W2)
     z = F.fold(z, kernel_size=s, output_size=(H1, W1), stride=s)
-
     return z
 
 def reshape_embedding(embedding):
@@ -202,7 +165,6 @@ class MVTecDataset(Dataset):
 
         return img, gt, label, os.path.basename(img_path[:-4]), img_type
 
-
 def cvt2heatmap(gray):
     heatmap = cv2.applyColorMap(np.uint8(gray), cv2.COLORMAP_JET)
     return heatmap
@@ -217,33 +179,11 @@ def heatmap_on_image(heatmap, image):
 def min_max_norm(image):
     a_min, a_max = image.min(), image.max()
     return (image-a_min)/(a_max - a_min)    
-
-
-def cal_confusion_matrix(y_true, y_pred_no_thresh, thresh, img_path_list):
-    pred_thresh = []
-    false_n = []
-    false_p = []
-    for i in range(len(y_pred_no_thresh)):
-        if y_pred_no_thresh[i] > thresh:
-            pred_thresh.append(1)
-            if y_true[i] == 0:
-                false_p.append(img_path_list[i])
-        else:
-            pred_thresh.append(0)
-            if y_true[i] == 1:
-                false_n.append(img_path_list[i])
-
-    cm = confusion_matrix(y_true, pred_thresh)
-    print(cm)
-    print('false positive')
-    print(false_p)
-    print('false negative')
-    print(false_n)
     
 
-class STPM(pl.LightningModule):
+class PatchCore(pl.LightningModule):
     def __init__(self, hparams):
-        super(STPM, self).__init__()
+        super(PatchCore, self).__init__()
 
         self.save_hyperparameters(hparams)
 
@@ -309,19 +249,19 @@ class STPM(pl.LightningModule):
 
     def train_dataloader(self):
         image_datasets = MVTecDataset(root=os.path.join(args.dataset_path,args.category), transform=self.data_transforms, gt_transform=self.gt_transforms, phase='train')
-        train_loader = DataLoader(image_datasets, batch_size=args.batch_size, shuffle=True, num_workers=0) #, pin_memory=True)
+        train_loader = DataLoader(image_datasets, batch_size=args.batch_size, shuffle=True, num_workers=0)
         return train_loader
 
     def test_dataloader(self):
         test_datasets = MVTecDataset(root=os.path.join(args.dataset_path,args.category), transform=self.data_transforms, gt_transform=self.gt_transforms, phase='test')
-        test_loader = DataLoader(test_datasets, batch_size=1, shuffle=False, num_workers=0) #, pin_memory=True) # only work on batch_size=1, now.
+        test_loader = DataLoader(test_datasets, batch_size=1, shuffle=False, num_workers=0)
         return test_loader
 
     def configure_optimizers(self):
         return None
 
     def on_train_start(self):
-        self.model.eval() # to stop running_var move (maybe not critical)
+        self.model.eval() # to stop running_var move (maybe not critical)        
         self.embedding_dir_path, self.sample_path, self.source_code_save_path = prep_dirs(self.logger.log_dir)
         self.embedding_list = []
     
@@ -334,7 +274,7 @@ class STPM(pl.LightningModule):
         self.embedding_dir_path, self.sample_path, self.source_code_save_path = prep_dirs(self.logger.log_dir)
         
     def training_step(self, batch, batch_idx): # save locally aware patch features
-        x, _, _, file_name, _ = batch
+        x, _, _, _, _ = batch
         features = self(x)
         embeddings = []
         for feature in features:
@@ -399,31 +339,19 @@ class STPM(pl.LightningModule):
         print('test_epoch_end')
         values = {'pixel_auc': pixel_auc, 'img_auc': img_auc}
         self.log_dict(values)
-        # anomaly_list = []
-        # normal_list = []
-        # for i in range(len(self.gt_list_img_lvl)):
-        #     if self.gt_list_img_lvl[i] == 1:
-        #         anomaly_list.append(self.pred_list_img_lvl[i])
-        #     else:
-        #         normal_list.append(self.pred_list_img_lvl[i])
-
-        # # thresholding
-        # # cal_confusion_matrix(self.gt_list_img_lvl, self.pred_list_img_lvl, img_path_list = self.img_path_list, thresh = 0.00097)
-        # # print()
-        # with open(args.project_root_path + r'/results.txt', 'a') as f:
-        #     f.write(args.category + ' : ' + str(values) + '\n')
 
 def get_args():
+    import argparse
     parser = argparse.ArgumentParser(description='ANOMALYDETECTION')
     parser.add_argument('--phase', choices=['train','test'], default='train')
-    parser.add_argument('--dataset_path', default=r'./MVTec') # 'D:\Dataset\mvtec_anomaly_detection')#
-    parser.add_argument('--category', default='hazelnut')
+    parser.add_argument('--dataset_path', default=r'./MVTec')
+    parser.add_argument('--category', default='bottle')
     parser.add_argument('--num_epochs', default=1)
     parser.add_argument('--batch_size', default=32)
-    parser.add_argument('--load_size', default=256) # 256
+    parser.add_argument('--load_size', default=256)
     parser.add_argument('--input_size', default=224)
     parser.add_argument('--coreset_sampling_ratio', default=0.001)
-    parser.add_argument('--project_root_path', default=r'./test') # 'D:\Project_Train_Results\mvtec_anomaly_detection\210624\test') #
+    parser.add_argument('--project_root_path', default=r'./test')
     parser.add_argument('--save_src_code', default=True)
     parser.add_argument('--save_anomaly_map', default=True)
     parser.add_argument('--n_neighbors', type=int, default=9)
@@ -433,8 +361,8 @@ def get_args():
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args = get_args()
-    trainer = pl.Trainer.from_argparse_args(args, default_root_dir=os.path.join(args.project_root_path, args.category), max_epochs=args.num_epochs, gpus=1) #, check_val_every_n_epoch=args.val_freq,  num_sanity_val_steps=0) # ,fast_dev_run=True)
-    model = STPM(hparams=args)
+    trainer = pl.Trainer.from_argparse_args(args, default_root_dir=os.path.join(args.project_root_path, args.category), max_epochs=args.num_epochs, gpus=1)
+    model = PatchCore(hparams=args)
     if args.phase == 'train':
         trainer.fit(model)
         trainer.test(model)
