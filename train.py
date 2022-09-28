@@ -266,12 +266,12 @@ class PatchCore(pl.LightningModule):
         self.embedding_list = []
     
     def on_test_start(self):
+        self.embedding_dir_path, self.sample_path, self.source_code_save_path = prep_dirs(self.logger.log_dir)
         self.index = faiss.read_index(os.path.join(self.embedding_dir_path,'index.faiss'))
         if torch.cuda.is_available():
             res = faiss.StandardGpuResources()
             self.index = faiss.index_cpu_to_gpu(res, 0 ,self.index)
         self.init_results_list()
-        self.embedding_dir_path, self.sample_path, self.source_code_save_path = prep_dirs(self.logger.log_dir)
         
     def training_step(self, batch, batch_idx): # save locally aware patch features
         x, _, _, _, _ = batch
